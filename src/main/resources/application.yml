@@ -1,0 +1,133 @@
+# ============================================================
+# AI Data Analyst Agent — Application Configuration
+# ============================================================
+# Sensitive values (API keys, passwords) MUST NOT be placed
+# in this file. Use environment variables or the gitignored
+# application-secrets.yml file instead.
+# ============================================================
+
+spring:
+
+  # ----------------------------------------------------------
+  # Import externalized secrets (gitignored file — optional)
+  # Set spring.config.import=optional:classpath:application-secrets.yml
+  # so startup does not fail when the file is absent in CI/CD.
+  # ----------------------------------------------------------
+  config:
+    import: "optional:classpath:application-secrets.yml"
+
+  application:
+    name: ai-data-analyst-agent
+
+  # ----------------------------------------------------------
+  # DataSource — replace placeholders with real values via
+  # environment variables or application-secrets.yml
+  # ----------------------------------------------------------
+  datasource:
+    url: "${DB_URL:jdbc:mysql://localhost:3306/analytics?useSSL=false&serverTimezone=UTC}"
+    username: "${DB_USERNAME:analyst_user}"
+    password: "${DB_PASSWORD:changeme}"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+    hikari:
+      # Read-only pool for the agent's SELECT-only database user
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000      # 20 s
+      idle-timeout: 300000           # 5 min
+      max-lifetime: 1200000          # 20 min
+      connection-test-query: "SELECT 1"
+
+  # ----------------------------------------------------------
+  # Spring Data JDBC
+  # ----------------------------------------------------------
+  sql:
+    init:
+      mode: never   # schema managed externally; no auto-DDL
+
+  # ----------------------------------------------------------
+  # Jackson
+  # ----------------------------------------------------------
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+# ----------------------------------------------------------
+# Server
+# ----------------------------------------------------------
+server:
+  port: 8080
+  error:
+    # Never expose stack traces or internal messages via /error
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+
+# ----------------------------------------------------------
+# OpenAI / LLM Configuration
+#
+# openai.api-key   — REQUIRED; supply via OPENAI_API_KEY env var
+#                    or application-secrets.yml (gitignored).
+#                    The OpenAiApiKeyGuard bean will reject startup
+#                    if this value is blank (requirement 13.8).
+#
+# openai.base-url  — Base URL for the Chat Completions endpoint.
+#                    Override to point at any OpenAI-compatible API.
+# ----------------------------------------------------------
+openai:
+  api-key: "${OPENAI_API_KEY:}"
+  base-url: "${OPENAI_BASE_URL:https://api.openai.com/v1}"
+  model: "${OPENAI_MODEL:gpt-4o}"
+  timeout-seconds: 30
+
+# ----------------------------------------------------------
+# Analytics DataSource (read-only — SELECT-only MySQL user)
+#
+# analytics.datasource.url      — JDBC URL for the analytics schema.
+#                                  Defaults to the same host/db as the
+#                                  primary datasource; override via env var.
+# analytics.datasource.username — MySQL user with SELECT-only privileges
+#                                  on the analytics schema (requirement 5.1).
+# analytics.datasource.password — Password for the analytics user; supply
+#                                  via env var or application-secrets.yml.
+# ----------------------------------------------------------
+analytics:
+  datasource:
+    url: "${ANALYTICS_DB_URL:jdbc:mysql://localhost:3306/analytics?useSSL=false&serverTimezone=UTC}"
+    username: "${ANALYTICS_DB_USERNAME:analytics_readonly}"
+    password: "${ANALYTICS_DB_PASSWORD:changeme}"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: analytics-pool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000      # 20 s
+      idle-timeout: 300000           # 5 min
+      max-lifetime: 1200000          # 20 min
+      connection-test-query: "SELECT 1"
+      # read-only is also enforced at the DataSource bean level in DataSourceConfig
+      data-source-properties:
+        readOnly: true
+
+# ----------------------------------------------------------
+# CORS
+#
+# cors.allowed-origin-prod — Production frontend domain to allow alongside
+#                            the Angular dev server (http://localhost:4200).
+#                            Leave blank (default) in local development.
+#                            Supply via env var or application-secrets.yml
+#                            for production deployments.
+# ----------------------------------------------------------
+cors:
+  allowed-origin-prod: "${CORS_ALLOWED_ORIGIN_PROD:}"
+
+# ----------------------------------------------------------
+# Logging
+# ----------------------------------------------------------
+logging:
+  level:
+    root: INFO
+    com.dataanalyst: DEBUG
+    # Log SQL at DEBUG level for development; set to INFO in prod
+    org.springframework.jdbc: DEBUG

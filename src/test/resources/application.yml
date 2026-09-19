@@ -1,0 +1,33 @@
+# Test configuration — overrides main application.yml for unit/integration tests.
+# The API key guard is disabled by providing a dummy key so tests can load
+# the Spring context without a real OpenAI credential.
+
+openai:
+  api-key: "test-api-key-placeholder"
+  base-url: "http://localhost:9999"  # points nowhere; tests mock the HTTP client
+
+spring:
+  config:
+    import: ""   # disable secrets import in test context
+  datasource:
+    url: "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL"
+    username: "sa"
+    password: ""
+    driver-class-name: org.h2.Driver
+
+# Analytics DataSource — uses H2 in-memory for tests (same DB as primary)
+analytics:
+  datasource:
+    url: "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL"
+    username: "sa"
+    password: ""
+    driver-class-name: org.h2.Driver
+
+# CORS — no production origin needed in tests
+cors:
+  allowed-origin-prod: ""
+
+logging:
+  level:
+    root: WARN
+    com.dataanalyst: DEBUG
